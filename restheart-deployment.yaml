@@ -1,0 +1,70 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: restheart
+  name: restheart
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: restheart
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app: restheart
+    spec:
+      containers:
+        - name: restheart
+          args:
+            - --envFile
+            - /opt/restheart/etc/restheart.properties
+          env:
+            - name: MONGO_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: restheart-mongodb-secret
+                  key: password
+            - name: MONGO_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: restheart-mongodb-secret
+                  key: username
+            - name: MONGO_URI
+              value: mongodb://$(MONGO_USERNAME):$(MONGO_PASSWORD)@restheart-mongo:27017
+          image: softinstigate/restheart:latest          
+          volumeMounts:
+          - name: conf
+            mountPath: /opt/restheart/etc/restheart.properties
+            subPath: restheart.properties
+          ports:
+            - containerPort: 8080
+      initContainers:          
+        - name: mongodb-initiate                   
+          command:
+          - bash
+          - -c
+          - for i in {1..100}; do mongo  --host restheart-mongo --port 27017 --username $MONGO_USERNAME --password $MONGO_PASSWORD --eval 'if (!rs.status().ok) rs.initiate();' && break || sleep 2; done
+          image: mongo:4.2
+          env:
+            - name: MONGO_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: restheart-mongodb-secret
+                  key: password
+            - name: MONGO_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: restheart-mongodb-secret
+                  key: username      
+      restartPolicy: Always
+      volumes:
+        - name: conf
+          configMap:
+            name: restheart-cm
+            items:
+            - key: restheart.properties
+              path: restheart.properties
+status: {}

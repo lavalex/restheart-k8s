@@ -1,0 +1,23 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: restheart-mongo
+spec:
+  selector:
+    app: restheart-mongo
+  ports:
+    - protocol: TCP
+      port: 27017
+      targetPort: 27017      
+---      
+apiVersion: v1
+kind: Service
+metadata:
+  name: restheart
+spec:
+  selector:
+    app: restheart
+  ports:
+    - protocol: TCP
+      port: 8080
+      targetPort: 8080
